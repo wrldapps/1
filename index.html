@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Offers</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f0f2f5;
+      color: #222;
+    }
+    main {
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    .offer-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 40px;
+    }
+    .offer-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s ease;
+      display: flex;
+      align-items: flex-start;
+      flex-direction: row;
+    }
+    .offer-card:hover {
+      transform: scale(1.02);
+    }
+    .offer-card img {
+      width: 30%;
+      height: 90px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-left: 10px;
+      flex-shrink: 0;
+    }
+    .offer-text {
+      width: 70%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    .offer-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .offer-desc {
+      font-size: 12px;
+      color: #555;
+      line-height: 1.4;
+      max-height: 3.6em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @media (max-width: 1000px) { .offer-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px)  { .offer-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 400px)  { 
+      .offer-grid { grid-template-columns: 1fr; } 
+      .offer-card { flex-direction: column; align-items: flex-start; } 
+      .offer-card img { width: 100%; margin-left: 0; margin-bottom: 10px; } 
+      .offer-text { width: 100%; } 
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="offers-container" class="offer-grid"></div>
+  </main>
+
+  <script>
+    const container = document.getElementById("offers-container");
+    let allOffers = [];
+
+    function addOfferCard(img, title, url, payout, desc="") {
+      const card = document.createElement("div");
+      card.className = "offer-card";
+      card.innerHTML = `
+        <img src="${img}" alt="Offer">
+        <div class="offer-text">
+          <div class="offer-title">${title}</div>
+          <div class="offer-desc">${desc || ""}</div>
+        </div>
+      `;
+      card.onclick = () => { if(url) window.open(url, "_blank"); };
+      card.dataset.payout = parseFloat(payout) || 0;
+      allOffers.push(card);
+    }
+
+    function renderOffers() {
+      container.innerHTML = "";
+      allOffers
+        .sort((a,b) => parseFloat(b.dataset.payout) - parseFloat(a.dataset.payout)) 
+        .slice(0, 5) 
+        .forEach(card => container.appendChild(card));
+    }
+
+    async function loadOffers() {
+      const apiKey = "35747|fMmu3zqvHNKzo7IE3dsQ30mCVsWhNKpKPqV8s9vYfa748a50";
+      const blockedIds = ["66714","66723","65862"];
+      try {
+        const ipRes = await fetch("https://api.ipify.org?format=json");
+        const ipData = await ipRes.json();
+        const apiUrl = new URL("https://unlockcontent.net/api/v2");
+        apiUrl.searchParams.append("ip", ipData.ip);
+        apiUrl.searchParams.append("user_agent", navigator.userAgent);
+        apiUrl.searchParams.append("limit", "1000");
+        apiUrl.searchParams.append("ctype", "0");
+        const res = await fetch(apiUrl, { headers: { Authorization: `Bearer ${apiKey}` } });
+        if(!res.ok) throw new Error("Fetch failed");
+        const data = await res.json();
+        const offers = data.offers || [];
+        if(offers && offers.length) {
+          offers
+            .filter(o => !/email submit|survey/i.test(o.name||"")) 
+            .filter(o => !blockedIds.includes(String(o.offer_id))) 
+            .filter(o => !(o.adcopy || "").includes("Level")) 
+            .filter(o => {
+              const desc = (o.adcopy || "")
+              return desc.includes("30") || desc.includes("VALID"); 
+            })
+            .forEach(o => {
+              const img = o.icon_url || o.picture || "";
+              const title = (o.name || o.name_short || "No title").split("-")[0].trim();
+              const url = o.click_url || o.link || o.offer_url || o.url;
+              addOfferCard(img, title, url, o.payout || 0, o.adcopy || "");
+            });
+          renderOffers();
+        }
+      } catch(err) {
+        console.error(err);
+      }
+    }
+
+    loadOffers();
+  </script>
+</body>
+</html>
